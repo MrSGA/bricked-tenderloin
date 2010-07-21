@@ -791,7 +791,6 @@ int kgsl_pwrctrl_sleep(struct kgsl_device *device)
 			device->ftbl.device_isidle(device))
 			goto sleep;
 	}
-
 	device->requested_state = KGSL_STATE_NONE;
 	return -EBUSY;
 
