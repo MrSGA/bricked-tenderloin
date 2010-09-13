@@ -143,6 +143,11 @@
 #define PG_dcache_dirty PG_arch_1
 
 /*
+ * We need this for some backports #FIXME
+ */
+#define PG_dcache_clean PG_arch_1
+
+/*
  *	MM Cache Management
  *	===================
  *
