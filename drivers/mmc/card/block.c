@@ -270,7 +270,13 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request brq;
-	int ret = 1, disable_multi = 0;
+	int ret = 1, disable_multi = 0, card_no_ready = 0;
+	int err = 0;
+	int try_recovery = 1, do_reinit = 0, do_remove = 0;
+
+#ifdef CONFIG_MMC_PERF_PROFILING
+	ktime_t start = { .tv64 = 0 }, diff;
+#endif
 
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
 	if (mmc_bus_needs_resume(card->host)) {
