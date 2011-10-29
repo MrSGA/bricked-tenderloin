@@ -315,7 +315,7 @@ static int power_suspend_late(struct device *dev)
 {
 	int ret = has_wake_lock(WAKE_LOCK_SUSPEND) ? -EAGAIN : 0;
 #ifdef CONFIG_WAKELOCK_STAT
-	wait_for_wakeup = 1;
+	wait_for_wakeup = !ret;
 #endif
 /*jonpry *HACK* Removes this whole late suspend wakelock feature as there appears to be nothing
 	purposefully using it and it totally blows up the WOW feature on emmc based wlan's */
