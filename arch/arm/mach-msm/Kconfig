@@ -477,6 +477,10 @@ choice
 		bool "UART3"
 endchoice
 
+config FORCE_WARNING_AS_ERROR
+	bool "Force warning as error"
+	default n
+
 choice
 	prompt "Default Timer"
 	default MSM7X00A_USE_GP_TIMER
