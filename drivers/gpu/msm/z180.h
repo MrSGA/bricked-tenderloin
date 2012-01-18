@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -26,13 +26,27 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef _GSL_CMDWINDOW_H
-#define _GSL_CMDWINDOW_H
+#ifndef __Z180_H
+#define __Z180_H
 
-struct kgsl_device;
+#define DEVICE_2D_NAME "kgsl-2d"
+#define DEVICE_2D0_NAME "kgsl-2d0"
+#define DEVICE_2D1_NAME "kgsl-2d1"
 
-int kgsl_g12_cmdwindow_write(struct kgsl_device *device,
-		enum kgsl_cmdwindow_type target, unsigned int addr,
-		unsigned int data);
+struct kgsl_g12_ringbuffer {
+	unsigned int prevctx;
+	struct kgsl_memdesc      cmdbufdesc;
+};
 
-#endif /* _GSL_CMDWINDOW_H */
+struct kgsl_g12_device {
+	struct kgsl_device dev;    /* Must be first field in this struct */
+	int current_timestamp;
+	int timestamp;
+	struct kgsl_g12_ringbuffer ringbuffer;
+	spinlock_t cmdwin_lock;
+};
+
+int kgsl_g12_setstate(struct kgsl_device *device, uint32_t flags);
+int kgsl_g12_idle(struct kgsl_device *device, unsigned int timeout);
+
+#endif /* __Z180_H */
