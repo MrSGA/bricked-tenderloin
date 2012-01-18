@@ -18,7 +18,6 @@
 
 /* #define DEBUG */
 #define ALIGN_CPU
-#define APP_DIR		"kgsl-cff"
 
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
@@ -28,9 +27,8 @@
 #include <linux/sched.h>
 
 #include "kgsl.h"
-#include "kgsl_pm4types.h"
 #include "kgsl_cffdump.h"
-
+#include "kgsl_debugfs.h"
 
 static struct rchan	*chan;
 static struct dentry	*dir;
@@ -71,7 +69,6 @@ struct cff_op_wait_irq {
 	unsigned char op;
 } __attribute__((packed));
 
-#define CFF_OP_VERIFY_MEM_FILE  0x00000007
 #define CFF_OP_RMW              0x0000000a
 
 #define CFF_OP_WRITE_MEM        0x0000000b
@@ -93,6 +90,17 @@ struct cff_op_write_membuf {
 struct cff_op_eof {
 	unsigned char op;
 } __attribute__((packed));
+
+#define CFF_OP_VERIFY_MEM_FILE  0x00000007
+#define CFF_OP_WRITE_SURFACE_PARAMS 0x00000011
+struct cff_op_user_event {
+	unsigned char op;
+	unsigned int op1;
+	unsigned int op2;
+	unsigned int op3;
+	unsigned int op4;
+	unsigned int op5;
+} __packed;
 
 
 static void b64_encodeblock(unsigned char in[3], unsigned char out[4], int len)
@@ -195,12 +203,13 @@ static void cffdump_membuf(int id, unsigned char *out_buf, int out_bufsize)
 }
 
 static void cffdump_printline(int id, uint opcode, uint op1, uint op2,
-	uint op3)
+	uint op3, uint op4, uint op5)
 {
 	struct cff_op_write_reg cff_op_write_reg;
 	struct cff_op_poll_reg cff_op_poll_reg;
 	struct cff_op_wait_irq cff_op_wait_irq;
 	struct cff_op_eof cff_op_eof;
+	struct cff_op_user_event cff_op_user_event;
 	unsigned char out_buf[sizeof(cff_op_write_membuf)/3*4 + 16];
 	void *data;
 	int len = 0, out_size;
@@ -252,6 +261,18 @@ static void cffdump_printline(int id, uint opcode, uint op1, uint op2,
 		data = &cff_op_eof;
 		len = sizeof(cff_op_eof);
 		break;
+
+	case CFF_OP_WRITE_SURFACE_PARAMS:
+	case CFF_OP_VERIFY_MEM_FILE:
+		cff_op_user_event.op = opcode;
+		cff_op_user_event.op1 = op1;
+		cff_op_user_event.op2 = op2;
+		cff_op_user_event.op3 = op3;
+		cff_op_user_event.op4 = op4;
+		cff_op_user_event.op5 = op5;
+		data = &cff_op_user_event;
+		len = sizeof(cff_op_user_event);
+		break;
 	}
 
 	if (len) {
@@ -272,6 +293,8 @@ static void cffdump_printline(int id, uint opcode, uint op1, uint op2,
 
 void kgsl_cffdump_init()
 {
+	struct dentry *debugfs_dir = kgsl_get_debugfs_dir();
+
 #ifdef ALIGN_CPU
 	cpumask_t mask;
 
@@ -279,11 +302,16 @@ void kgsl_cffdump_init()
 	cpumask_set_cpu(1, &mask);
 	sched_setaffinity(0, &mask);
 #endif
+	if (!debugfs_dir || IS_ERR(debugfs_dir)) {
+		KGSL_CORE_ERR("Debugfs directory is bad\n");
+		return;
+	}
+
 	kgsl_cff_dump_enable = 1;
 
 	spin_lock_init(&cffdump_lock);
 
-	dir = debugfs_create_dir(APP_DIR, NULL);
+	dir = debugfs_create_dir("cff", debugfs_dir);
 	if (!dir) {
 		KGSL_CORE_ERR("debugfs_create_dir failed\n");
 		return;
@@ -303,11 +331,40 @@ void kgsl_cffdump_destroy()
 
 void kgsl_cffdump_open(enum kgsl_deviceid device_id)
 {
+	/*TODO: move this to where we can report correct gmemsize*/
+	unsigned int va_base;
+
+	if (cpu_is_msm8x60() || cpu_is_msm8960())
+		va_base = 0x40000000;
+	else
+		va_base = 0x20000000;
+
+	kgsl_cffdump_memory_base(device_id, va_base,
+			CONFIG_MSM_KGSL_PAGE_TABLE_SIZE, SZ_256K);
+}
+
+void kgsl_cffdump_memory_base(enum kgsl_deviceid device_id, unsigned int base,
+			      unsigned int range, unsigned gmemsize)
+{
+	cffdump_printline(device_id, CFF_OP_MEMORY_BASE, base,
+			range, gmemsize, 0, 0);
+}
+
+void kgsl_cffdump_hang(enum kgsl_deviceid device_id)
+{
+	cffdump_printline(device_id, CFF_OP_HANG, 0, 0, 0, 0, 0);
 }
 
 void kgsl_cffdump_close(enum kgsl_deviceid device_id)
 {
-	cffdump_printline(device_id, CFF_OP_EOF, 0, 0, 0);
+	cffdump_printline(device_id, CFF_OP_EOF, 0, 0, 0, 0, 0);
+}
+
+void kgsl_cffdump_user_event(unsigned int cff_opcode, unsigned int op1,
+		unsigned int op2, unsigned int op3,
+		unsigned int op4, unsigned int op5)
+{
+	cffdump_printline(-1, cff_opcode, op1, op2, op3, op4, op5);
 }
 
 void kgsl_cffdump_syncmem(struct kgsl_device_private *dev_priv,
@@ -351,30 +408,24 @@ void kgsl_cffdump_syncmem(struct kgsl_device_private *dev_priv,
 	if (clean_cache) {
 		/* Ensure that this memory region is not read from the
 		 * cache but fetched fresh */
-		if (memdesc->priv & KGSL_MEMFLAGS_VMALLOC_MEM) {
-			dsb(); wmb(); mb();
-			kgsl_cache_range_op((ulong)memdesc->physaddr,
-				memdesc->size, KGSL_MEMFLAGS_CACHE_INV |
-				KGSL_MEMFLAGS_VMALLOC_MEM);
-		} else {
-			dsb(); wmb(); mb();
-			kgsl_cache_range_op((unsigned long)memdesc->hostptr,
-				memdesc->size, KGSL_MEMFLAGS_CACHE_INV |
-				KGSL_MEMFLAGS_CONPHYS);
-		}
+
+		dsb(); wmb(); mb();
+
+		kgsl_cache_range_op(memdesc->hostptr, memdesc->size,
+				    memdesc->type, KGSL_CACHE_OP_INV);
 	}
 
 	BUG_ON(physaddr > 0x66000000 && physaddr < 0x66ffffff);
 	while (sizebytes > 3) {
-		cffdump_printline(-1, CFF_OP_WRITE_MEM, physaddr, *(uint *)src,
-			0);
-		physaddr += 4;
+		cffdump_printline(-1, CFF_OP_WRITE_MEM, gpuaddr, *(uint *)src,
+			0, 0, 0);
+		gpuaddr += 4;
 		src += 4;
 		sizebytes -= 4;
 	}
 	if (sizebytes > 0)
-		cffdump_printline(-1, CFF_OP_WRITE_MEM, physaddr, *(uint *)src,
-			0);
+		cffdump_printline(-1, CFF_OP_WRITE_MEM, gpuaddr, *(uint *)src,
+			0, 0, 0);
 }
 
 void kgsl_cffdump_setmem(uint addr, uint value, uint sizebytes)
@@ -386,12 +437,14 @@ void kgsl_cffdump_setmem(uint addr, uint value, uint sizebytes)
 	while (sizebytes > 3) {
 		/* Use 32bit memory writes as long as there's at least
 		 * 4 bytes left */
-		cffdump_printline(-1, CFF_OP_WRITE_MEM, addr, value, 0);
+		cffdump_printline(-1, CFF_OP_WRITE_MEM, addr, value,
+				0, 0, 0);
 		addr += 4;
 		sizebytes -= 4;
 	}
 	if (sizebytes > 0)
-		cffdump_printline(-1, CFF_OP_WRITE_MEM, addr, value, 0);
+		cffdump_printline(-1, CFF_OP_WRITE_MEM, addr, value,
+				0, 0, 0);
 }
 
 void kgsl_cffdump_regwrite(enum kgsl_deviceid device_id, uint addr,
@@ -400,7 +453,8 @@ void kgsl_cffdump_regwrite(enum kgsl_deviceid device_id, uint addr,
 	if (!kgsl_cff_dump_enable)
 		return;
 
-	cffdump_printline(device_id, CFF_OP_WRITE_REG, addr, value, 0);
+	cffdump_printline(device_id, CFF_OP_WRITE_REG, addr, value,
+			0, 0, 0);
 }
 
 void kgsl_cffdump_regpoll(enum kgsl_deviceid device_id, uint addr,
@@ -409,7 +463,8 @@ void kgsl_cffdump_regpoll(enum kgsl_deviceid device_id, uint addr,
 	if (!kgsl_cff_dump_enable)
 		return;
 
-	cffdump_printline(device_id, CFF_OP_POLL_REG, addr, value, mask);
+	cffdump_printline(device_id, CFF_OP_POLL_REG, addr, value,
+			mask, 0, 0);
 }
 
 void kgsl_cffdump_slavewrite(uint addr, uint value)
@@ -417,7 +472,7 @@ void kgsl_cffdump_slavewrite(uint addr, uint value)
 	if (!kgsl_cff_dump_enable)
 		return;
 
-	cffdump_printline(-1, CFF_OP_WRITE_REG, addr, value, 0);
+	cffdump_printline(-1, CFF_OP_WRITE_REG, addr, value, 0, 0, 0);
 }
 
 int kgsl_cffdump_waitirq(void)
@@ -425,7 +480,7 @@ int kgsl_cffdump_waitirq(void)
 	if (!kgsl_cff_dump_enable)
 		return 0;
 
-	cffdump_printline(-1, CFF_OP_WAIT_IRQ, 0, 0, 0);
+	cffdump_printline(-1, CFF_OP_WAIT_IRQ, 0, 0, 0, 0, 0);
 
 	return 1;
 }
@@ -527,18 +582,10 @@ bool kgsl_cffdump_parse_ibs(struct kgsl_device_private *dev_priv,
 	if (!memdesc->physaddr) {
 		KGSL_CORE_ERR("no physaddr");
 		return true;
-	} else if ((memdesc->priv & KGSL_MEMFLAGS_VMALLOC_MEM)) {
+	else {
 		dsb(); wmb(); mb();
-		/* Ensure that this memory region is not read from the
-		 * cache but fetched fresh */
-		kgsl_cache_range_op((unsigned long)memdesc->physaddr,
-			memdesc->size, KGSL_MEMFLAGS_CACHE_INV |
-			KGSL_MEMFLAGS_VMALLOC_MEM);
-	} else {
-		dsb(); wmb(); mb();
-		kgsl_cache_range_op((unsigned long)memdesc->hostptr,
-			memdesc->size, KGSL_MEMFLAGS_CACHE_INV |
-			KGSL_MEMFLAGS_CONPHYS);
+		kgsl_cache_range_op(memdesc->hostptr, memdesc->size,
+				    memdesc->type, KGSL_CACHE_OP_INV);
 	}
 
 #ifdef DEBUG
@@ -710,7 +757,7 @@ static struct rchan *create_channel(unsigned subbuf_size, unsigned n_subbufs)
 }
 
 /**
- *	destroy_channel - destroys channel /debug/APP_DIR/cpuXXX
+ *	destroy_channel - destroys channel /debug/kgsl/cff/cpuXXX
  *
  *	Destroys channel along with associated produced/consumed control files
  */
