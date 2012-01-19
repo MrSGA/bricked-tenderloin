@@ -2111,11 +2111,13 @@ static int
 hsuart_ioctl(struct tty_struct *tty, struct file *file,
 			 unsigned int cmd, unsigned long args)
 {
-	int 				ret = -ENOIOCTLCMD;;
+	int 				ret = -ENOIOCTLCMD;
+	int   				usr_bytes;
+	void *				usr_ptr;
 	struct dev_ctxt* 		p_contxt;
-	void *				usr_ptr   = (void*) (args);
-	int   				usr_bytes = _IOC_SIZE(cmd);
 
+	usr_bytes = _IOC_SIZE(cmd);
+	usr_ptr   = (void*) (args);
 	p_contxt = (struct dev_ctxt*)tty->driver_data;
 
 	HSUART_ENTER();
