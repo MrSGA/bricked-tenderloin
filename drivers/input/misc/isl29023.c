@@ -839,11 +839,13 @@ static void isl29023_work(struct work_struct *work)
 	struct isl29023_data *data_polled =
 			container_of((struct delayed_work *)work, struct isl29023_data, polled_work);
 
+	struct i2c_client *client;
+	int lux;
+
 	if (data_polled->polled)
 		data = data_polled;
 
-	struct i2c_client *client = data->client;
-	int lux;
+	client = data->client;
 
 	if (!data->polled) {
 		/* Clear interrupt flag */
