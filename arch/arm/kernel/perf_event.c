@@ -3839,6 +3839,10 @@ static void
 perf_callchain_user(struct pt_regs *regs,
 		    struct perf_callchain_entry *entry)
 {
+	unsigned long fp;
+	unsigned long sp;
+	unsigned long lr;
+
 	callchain_store(entry, PERF_CONTEXT_USER);
 
 	if (!user_mode(regs)) {
@@ -3846,9 +3850,9 @@ perf_callchain_user(struct pt_regs *regs,
 		callchain_store(entry, regs->ARM_pc);
 	}
 
-	unsigned long fp = regs->ARM_fp;
-	unsigned long sp = regs->ARM_sp;
-	unsigned long lr = regs->ARM_lr;
+	fp = regs->ARM_fp;
+	sp = regs->ARM_sp;
+	lr = regs->ARM_lr;
 
 	while ((entry->nr < PERF_MAX_STACK_DEPTH) &&
                 fp && !(fp & 3)) {
