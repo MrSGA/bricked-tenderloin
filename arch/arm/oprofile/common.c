@@ -436,6 +436,9 @@ struct frame_tail {
 
 void arm_backtrace(struct pt_regs * const regs, unsigned int depth)
 {
+	unsigned long fp;
+	unsigned long sp;
+	unsigned long lr;
 	struct frame_tail *tail = ((struct frame_tail *) regs->ARM_fp) - 1;
 
 	if (!user_mode(regs)) {
@@ -448,9 +451,9 @@ void arm_backtrace(struct pt_regs * const regs, unsigned int depth)
 		return;
 	}
 
-	unsigned long fp = regs->ARM_fp;
-	unsigned long sp = regs->ARM_sp;
-	unsigned long lr = regs->ARM_lr;
+	fp = regs->ARM_fp;
+	sp = regs->ARM_sp;
+	lr = regs->ARM_lr;
 
 	while (depth-- && fp && !(fp & 3))
 	{
