@@ -4012,8 +4012,8 @@ static struct platform_device *tenderloin_devices[] __initdata = {
  	&ctp_uart_device,
 #endif /* CONFIG_TOUCHSCREEN_CY8CTMA395[_MODULE] */
 
-//#if defined (CONFIG_ATH6K_LEGACY)	\
-//	|| defined (CONFIG_ATH6K_LEGACY_MODULE)
+/* #if defined (CONFIG_ATH6K_LEGACY)	\
+	|| defined (CONFIG_ATH6K_LEGACY_MODULE) */
 	&msm_wlan_pm_device,
 //#endif
 
