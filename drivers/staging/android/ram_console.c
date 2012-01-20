@@ -384,6 +384,7 @@ static int __init ram_console_late_init(void)
 	struct proc_dir_entry *entry;
 
 	if (ram_console_old_log == NULL)
+		printk(KERN_ERR "ram_console: No old log found in memory\n");
 		return 0;
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_EARLY_INIT
 	ram_console_old_log = kmalloc(ram_console_old_log_size, GFP_KERNEL);
