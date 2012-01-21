@@ -21,6 +21,7 @@
 #include <linux/mutex.h>
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/init.h>
 
 #include <asm/cacheflush.h>
 
@@ -269,6 +270,7 @@ out:
 }
 EXPORT_SYMBOL(scm_call);
 
+
 #define SCM_CLASS_REGISTER	(0x2 << 8)
 #define SCM_MASK_IRQS		BIT(5)
 #define SCM_ATOMIC(svc, cmd, n) (((((svc) << 10)|((cmd) & 0x3ff)) << 12) | \
@@ -285,7 +287,7 @@ EXPORT_SYMBOL(scm_call);
  * This shall only be used with commands that are guaranteed to be
  * uninterruptable, atomic and SMP safe.
  */
-u32 scm_call_atomic1(u32 svc, u32 cmd, u32 arg1)
+s32 scm_call_atomic1(u32 svc, u32 cmd, u32 arg1)
 {
 	int context_id;
 	register u32 r0 asm("r0") = SCM_ATOMIC(svc, cmd, 1);
@@ -316,7 +318,7 @@ EXPORT_SYMBOL(scm_call_atomic1);
  * This shall only be used with commands that are guaranteed to be
  * uninterruptable, atomic and SMP safe.
  */
-u32 scm_call_atomic2(u32 svc, u32 cmd, u32 arg1, u32 arg2)
+s32 scm_call_atomic2(u32 svc, u32 cmd, u32 arg1, u32 arg2)
 {
 	int context_id;
 	register u32 r0 asm("r0") = SCM_ATOMIC(svc, cmd, 2);
@@ -368,6 +370,22 @@ u32 scm_get_version(void)
 	return version;
 }
 EXPORT_SYMBOL(scm_get_version);
+
+#define IS_CALL_AVAIL_CMD	1
+int scm_is_call_available(u32 svc_id, u32 cmd_id)
+{
+	int ret;
+	u32 svc_cmd = (svc_id << 10) | cmd_id;
+	u32 ret_val = 0;
+
+	ret = scm_call(SCM_SVC_INFO, IS_CALL_AVAIL_CMD, &svc_cmd,
+			sizeof(svc_cmd), &ret_val, sizeof(ret_val));
+	if (ret)
+		return ret;
+
+	return ret_val;
+}
+EXPORT_SYMBOL(scm_is_call_available);
 
 static int __init scm_init(void)
 {
