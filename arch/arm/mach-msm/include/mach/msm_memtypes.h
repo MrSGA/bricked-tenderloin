@@ -39,4 +39,13 @@
 unsigned int get_num_populated_chipselects(void);
 #endif
 
+enum {
+	MEMTYPE_NONE = -1,
+	MEMTYPE_SMI_KERNEL = 0,
+	MEMTYPE_SMI,
+	MEMTYPE_EBI0,
+	MEMTYPE_EBI1,
+	MEMTYPE_MAX,
+};
+
 #endif

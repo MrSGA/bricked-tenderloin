@@ -17,12 +17,14 @@
 #include <linux/mm.h>
 #include <linux/mm_types.h>
 #include <linux/bootmem.h>
+#include <linux/memory_alloc.h>
 #include <linux/module.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/mach/map.h>
 #include <asm/cacheflush.h>
 #include <linux/hardirq.h>
+#include <mach/msm_memtypes.h>
 #if defined(CONFIG_MSM_NPA_REMOTE)
 #include "npa_remote.h"
 #include <linux/completion.h>
@@ -200,3 +202,19 @@ int platform_physical_low_power_pages(unsigned long start_pfn,
 {
 	return 1;
 }
+
+static int get_ebi_memtype(void)
+{
+	/* on 7x30 and 8x55 "EBI1 kernel PMEM" is really on EBI0
+	if (cpu_is_msm7x30() || cpu_is_msm8x55())
+		return MEMTYPE_EBI0; */
+	return MEMTYPE_EBI1;
+}
+
+unsigned long allocate_contiguous_ebi_nomap(unsigned long size,
+  unsigned long align)
+{
+   return _allocate_contiguous_memory_nomap(size, MEMTYPE_EBI0,
+     align, __builtin_return_address(0));
+}
+EXPORT_SYMBOL(allocate_contiguous_ebi_nomap);

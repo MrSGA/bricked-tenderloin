@@ -39,6 +39,9 @@ struct mem_pool *initialize_memory_pool(unsigned long start,
 void *allocate_contiguous_memory(unsigned long size,
 	int mem_type, unsigned long align, int cached);
 
+unsigned long _allocate_contiguous_memory_nomap(unsigned long size,
+	int mem_type, unsigned long align, void *caller);
+
 unsigned long allocate_contiguous_memory_nomap(unsigned long size,
 	int mem_type, unsigned long align);
 
