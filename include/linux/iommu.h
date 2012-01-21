@@ -44,6 +44,10 @@ struct iommu_ops {
 		   phys_addr_t paddr, int gfp_order, int prot);
 	int (*unmap)(struct iommu_domain *domain, unsigned long iova,
 		     int gfp_order);
+	int (*map_range)(struct iommu_domain *domain, unsigned int iova,
+		    struct scatterlist *sg, unsigned int len, int prot);
+	int (*unmap_range)(struct iommu_domain *domain, unsigned int iova,
+		      unsigned int len);
 	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain,
 				    unsigned long iova);
 	int (*domain_has_cap)(struct iommu_domain *domain,
