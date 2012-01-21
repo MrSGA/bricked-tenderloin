@@ -31,6 +31,7 @@ struct alloc {
 	unsigned long paddr;
 	struct mem_pool *mpool;
 	unsigned long len;
+	void *caller;
 };
 
 struct mem_pool *initialize_memory_pool(unsigned long start,

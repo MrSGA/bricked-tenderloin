@@ -283,54 +283,6 @@ void *allocate_contiguous_memory(unsigned long size,
 }
 EXPORT_SYMBOL_GPL(allocate_contiguous_memory);
 
-unsigned long allocate_contiguous_memory_nomap(unsigned long size,
-	int mem_type, unsigned long align)
-{
-	unsigned long paddr;
-	unsigned long aligned_size;
-
-	struct alloc *node;
-	struct mem_pool *mpool;
-	int log_align = ilog2(align);
-
-	mpool = mem_type_to_memory_pool(mem_type);
-	if (!mpool || !mpool->gpool)
-		return 0;
-
-	aligned_size = PFN_ALIGN(size);
-	paddr = gen_pool_alloc_aligned(mpool->gpool, aligned_size, log_align);
-	if (!paddr)
-		return 0;
-
-	node = kmalloc(sizeof(struct alloc), GFP_KERNEL);
-	if (!node)
-		goto out;
-
-	node->paddr = paddr;
-
-	/* We search the tree using node->vaddr, so set
-	 * it to something unique even though we don't
-	 * use it for physical allocation nodes.
-	 * The virtual and physical address ranges
-	 * are disjoint, so there won't be any chance of
-	 * a duplicate node->vaddr value.
-	 */
-	node->vaddr = (void *)paddr;
-	node->len = aligned_size;
-	node->mpool = mpool;
-	if (add_alloc(node))
-		goto out_kfree;
-
-	mpool->free -= aligned_size;
-	return paddr;
-out_kfree:
-	kfree(node);
-out:
-	gen_pool_free(mpool->gpool, paddr, aligned_size);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(allocate_contiguous_memory_nomap);
-
 void free_contiguous_memory(void *addr)
 {
 	if (!addr)
