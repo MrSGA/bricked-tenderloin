@@ -998,6 +998,8 @@ kgsl_mmu_map(struct kgsl_pagetable *pagetable,
 		       pagetable->stats.max_mapped);
 
 	mb();
+	dsb();
+	outer_sync();
 
 	/* Invalidate tlb only if current page table used by GPU is the
 	 * pagetable that we used to allocate */
@@ -1025,8 +1027,7 @@ kgsl_mmu_unmap(struct kgsl_pagetable *pagetable,
 
 	unsigned int gpuaddr = memdesc->gpuaddr &  KGSL_MMU_ALIGN_MASK;
 
-	if (range == 0 || gpuaddr == 0)
-		return 0;
+	BUG_ON(range <= 0);
 
 	numpages = (range >> PAGE_SHIFT);
 	if (range & (PAGE_SIZE - 1))
@@ -1055,6 +1056,9 @@ kgsl_mmu_unmap(struct kgsl_pagetable *pagetable,
 	pagetable->stats.mapped -= range;
 
 	mb();
+	dsb();
+	outer_sync();
+
 	spin_unlock(&pagetable->lock);
 
 	gen_pool_free(pagetable->pool, gpuaddr, range);
