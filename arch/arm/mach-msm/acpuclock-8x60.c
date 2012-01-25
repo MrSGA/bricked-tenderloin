@@ -56,8 +56,8 @@
 //#define L_VAL_SCPLL_CAL_MAX	0x21 /* = 1782 MHz with 27MHz source */
 #define L_VAL_SCPLL_CAL_MAX	0x24 /* = 1914 MHz with 27MHz source */
 
-#define MAX_VDD_SC		1350000 /* uV */
-#define MIN_VDD_SC		 812500 /* uV */
+#define MAX_VDD_SC		1425000 /* uV */
+#define MIN_VDD_SC		 750000 /* uV */
 #define MAX_AXI			 310500 /* KHz */
 #define SCPLL_LOW_VDD_FMAX	 594000 /* KHz */
 #define SCPLL_LOW_VDD		1000000 /* uV */
@@ -242,7 +242,7 @@ static struct clkctl_acpu_speed acpu_freq_tbl_oc[] = {
   { {1, 1}, 1782000,  ACPU_SCPLL, 0, 0, 1, 0x1D, L2(21), 1325000, 0x03006000},
   { {1, 1}, 1836000,  ACPU_SCPLL, 0, 0, 1, 0x1E, L2(21), 1337500, 0x03006000},
   { {1, 1}, 1890000,  ACPU_SCPLL, 0, 0, 1, 0x1F, L2(21), 1350000, 0x03006000},
-  { {1, 1}, 1914000,  ACPU_SCPLL, 0, 0, 1, 0x20, L2(22), 1350000, 0x03006000},
+  { {1, 1}, 1914000,  ACPU_SCPLL, 0, 0, 1, 0x20, L2(22), 1375000, 0x03006000},
   { {0, 0}, 0 },
 };
 
