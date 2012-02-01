@@ -26,28 +26,33 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef __ADRENO_RINGBUFFER_H
-#define __ADRENO_RINGBUFFER_H
+#ifndef __GSL_RINGBUFFER_H
+#define __GSL_RINGBUFFER_H
+#include <linux/msm_kgsl.h>
+#include <linux/mutex.h>
+#include "yamato_reg.h"
+
+#define GSL_STATS_RINGBUFFER
 
 #define GSL_RB_USE_MEM_RPTR
 #define GSL_RB_USE_MEM_TIMESTAMP
 #define GSL_DEVICE_SHADOW_MEMSTORE_TO_USER
 
 /* ringbuffer sizes log2quadword */
-#define GSL_RB_SIZE_8		0
+#define GSL_RB_SIZE_8	 	0
 #define GSL_RB_SIZE_16		1
 #define GSL_RB_SIZE_32		2
 #define GSL_RB_SIZE_64		3
 #define GSL_RB_SIZE_128		4
 #define GSL_RB_SIZE_256		5
 #define GSL_RB_SIZE_512		6
-#define GSL_RB_SIZE_1K		7
-#define GSL_RB_SIZE_2K		8
-#define GSL_RB_SIZE_4K		9
-#define GSL_RB_SIZE_8K		10
-#define GSL_RB_SIZE_16K		11
-#define GSL_RB_SIZE_32K		12
-#define GSL_RB_SIZE_64K		13
+#define GSL_RB_SIZE_1K  	7
+#define GSL_RB_SIZE_2K  	8
+#define GSL_RB_SIZE_4K  	9
+#define GSL_RB_SIZE_8K  	10
+#define GSL_RB_SIZE_16K 	11
+#define GSL_RB_SIZE_32K 	12
+#define GSL_RB_SIZE_64K 	13
 #define GSL_RB_SIZE_128K	14
 #define GSL_RB_SIZE_256K	15
 #define GSL_RB_SIZE_512K	16
@@ -78,6 +83,14 @@ struct kgsl_rbmemptrs {
 #define GSL_RB_MEMPTRS_WPTRPOLL_OFFSET \
 	(offsetof(struct kgsl_rbmemptrs, wptr_poll))
 
+#ifdef GSL_STATS_RINGBUFFER
+struct kgsl_rbstats {
+	int64_t issues;
+	int64_t words_total;
+};
+#endif /* GSL_STATS_RINGBUFFER */
+
+
 struct kgsl_ringbuffer {
 	struct kgsl_device *device;
 	uint32_t flags;
@@ -94,6 +107,11 @@ struct kgsl_ringbuffer {
 	unsigned int wptr; /* write pointer offset in dwords from baseaddr */
 	unsigned int rptr; /* read pointer offset in dwords from baseaddr */
 	uint32_t timestamp;
+
+#ifdef GSL_STATS_RINGBUFFER
+	struct kgsl_rbstats stats;
+#endif /* GSL_STATS_RINGBUFFER */
+
 };
 
 /* dword base address of the GFX decode space */
@@ -151,6 +169,13 @@ struct kgsl_ringbuffer {
 #define GSL_RB_UPDATE_WPTR_POLLING(rb)
 #endif	/* GSL_RB_USE_WPTR_POLLING */
 
+/* stats */
+#ifdef GSL_STATS_RINGBUFFER
+#define GSL_RB_STATS(x) x
+#else
+#define GSL_RB_STATS(x)
+#endif /* GSL_STATS_RINGBUFFER */
+
 int kgsl_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 				struct kgsl_context *context,
 				struct kgsl_ibdesc *ibdesc, unsigned int numibs,
@@ -161,24 +186,20 @@ int kgsl_ringbuffer_init(struct kgsl_device *device);
 
 int kgsl_ringbuffer_start(struct kgsl_ringbuffer *rb, unsigned int init_ram);
 
-int kgsl_ringbuffer_stop(struct kgsl_ringbuffer *rb);
+void kgsl_ringbuffer_stop(struct kgsl_ringbuffer *rb);
 
-int kgsl_ringbuffer_close(struct kgsl_ringbuffer *rb);
+void kgsl_ringbuffer_close(struct kgsl_ringbuffer *rb);
 
 void kgsl_ringbuffer_issuecmds(struct kgsl_device *device,
 					unsigned int flags,
 					unsigned int *cmdaddr,
 					int sizedwords);
 
+int kgsl_ringbuffer_gettimestampshadow(struct kgsl_device *device,
+					unsigned int *sopaddr,
+					unsigned int *eopaddr);
+
 void kgsl_cp_intrcallback(struct kgsl_device *device);
-
-int kgsl_ringbuffer_extract(struct kgsl_ringbuffer *rb,
-				unsigned int *temp_rb_buffer,
-				int *rb_size);
-
-void
-kgsl_ringbuffer_restore(struct kgsl_ringbuffer *rb, unsigned int *rb_buff,
-			int num_rb_contents);
 
 static inline int kgsl_ringbuffer_count(struct kgsl_ringbuffer *rb,
 	unsigned int rptr)
@@ -188,11 +209,4 @@ static inline int kgsl_ringbuffer_count(struct kgsl_ringbuffer *rb,
 	return rb->wptr + rb->sizedwords - rptr;
 }
 
-/* Increment a value by 4 bytes with wrap-around based on size */
-static inline unsigned int adreno_ringbuffer_inc_wrapped(unsigned int val,
-							unsigned int size)
-{
-	return (val + sizeof(unsigned int)) % size;
-}
-
-#endif  /* __ADRENO_RINGBUFFER_H */
+#endif  /* __GSL_RINGBUFFER_H */
