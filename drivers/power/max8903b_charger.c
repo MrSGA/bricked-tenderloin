@@ -46,7 +46,10 @@ static int max8903b_current_setup(enum max8903b_current value)
 	enum max8903b_current old_current_limit = current_limit;
 
 	/* is device already setup? if not, return instead of crashing */
-	if (!pdevice_resource) return -ENOENT;
+	if (!pdevice_resource) {
+		printk(KERN_INFO "%s: ### max8903b is not set up. -ENOENT returned.\n", __func__);
+		return -ENOENT;
+	}
 
 	current_limit = value;
 
