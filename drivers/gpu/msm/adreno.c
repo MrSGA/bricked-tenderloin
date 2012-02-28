@@ -491,7 +491,6 @@ static int adreno_start(struct kgsl_device *device, unsigned int init_ram)
 	int status = -EINVAL;
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
 	int init_reftimestamp = 0x7fffffff;
-	unsigned int override1 = 0, override2 = 0, i = 0;
 
 	kgsl_pwrctrl_set_state(device, KGSL_STATE_INIT);
 
