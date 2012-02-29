@@ -184,11 +184,11 @@ static int kgsl_iommu_init(struct kgsl_device *device)
 
 	iommu->iommu_priv_dev_attached = 0;
 	iommu->iommu_user_dev_attached = 0;
-	status = kgsl_get_iommu_ctxt(iommu, device);
-	if (status) {
+//	status = kgsl_get_iommu_ctxt(iommu, device);
+//	if (status) {
 		kfree(iommu);
 		iommu = NULL;
-	}
+//	}
 	mmu->priv = iommu;
 
 	dev_info(device->dev, "|%s| MMU type set for device is IOMMU\n",
